@@ -93,12 +93,24 @@ func GetSecretByRef(ref string) (azsecrets.GetSecretResponse, error) {
 	return GetSecret(vaultName, secretName)
 }
 
+var cred *azidentity.DefaultAzureCredential
+
+func GetAuth() (err error) {
+	if cred == nil {
+		cred, err = azidentity.NewDefaultAzureCredential(nil)
+		if err != nil {
+			var responseError azidentity.AuthenticationFailedError
+			errors.As(err, &responseError)
+			return fmt.Errorf("authentication error: ", responseError.RawResponse.Status)
+		}
+	}
+	return nil
+}
+
 func GetSecret(vaultUrl, secretName string) (azsecrets.GetSecretResponse, error) {
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	err := GetAuth()
 	if err != nil {
-		var responseError azidentity.AuthenticationFailedError
-		errors.As(err, &responseError)
-		return azsecrets.GetSecretResponse{}, fmt.Errorf("authentication error: ", responseError.RawResponse.Status)
+		return azsecrets.GetSecretResponse{}, err
 	}
 	client, err := azsecrets.NewClient(vaultUrl, cred, nil)
 	if err != nil {
