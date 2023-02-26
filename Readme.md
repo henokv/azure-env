@@ -6,3 +6,8 @@ Sometimes while testing certain CLI tools (e.g.: terraform import) locally I can
 This tool allows me to use env vars and still use azure key vault to store my secrets.
 The credentials are, by default, not stored on the file system. Later on support for locally (temporary) caching
 and azure app configuration might get added.
+
+## Installation
+
+for now please use ```go install github.com/henokv/azure-env```  
+Later I will also add binaries in releases.
