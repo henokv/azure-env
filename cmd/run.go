@@ -4,27 +4,28 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
 	"github.com/henokv/azure-env/internal"
 	"github.com/spf13/cobra"
+	"log"
 	"os"
 	"os/exec"
 )
 
 // runCmd represents the run command
 var runCmd = &cobra.Command{
-	Use:   "run",
+	Use:   "run <command> (args...)",
 	Args:  cobra.MinimumNArgs(1),
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Runs commands with all env vars converted if azure reference found ",
+	Long:  `Runs commands with all env vars converted if azure reference found.`,
+	Example: fmt.Sprintf(`Runs 'terraform plan' but will add all env vars following pattern 'azure://' with key vault ref:
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: runCmdFunc,
+        %s run terraform plan`, rootCmd.Name()),
+	//Run: runCmdFunc,
+	RunE: runCmdFunc,
 }
 
-func runCmdFunc(cmd *cobra.Command, args []string) {
+func runCmdFunc(cmd *cobra.Command, args []string) (error error) {
 	var runner *exec.Cmd
 	if len(args) == 1 {
 		runner = exec.Command(args[0])
@@ -34,7 +35,8 @@ func runCmdFunc(cmd *cobra.Command, args []string) {
 	//runner.Env
 	secrets, otherEnv, err := internal.GetEnvAsSecret()
 	if err != nil {
-
+		return err
+		log.Fatalf("hi")
 	}
 	env := internal.GetFullRenderedEnv(secrets, otherEnv)
 	runner.Env = env
@@ -43,6 +45,7 @@ func runCmdFunc(cmd *cobra.Command, args []string) {
 	runner.Stderr = os.Stderr
 	runner.Stdin = os.Stdin
 	runner.Run()
+	return nil
 }
 
 func init() {

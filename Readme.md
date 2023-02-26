@@ -9,7 +9,7 @@ and azure app configuration might get added.
 
 ## Installation
 
-for now please use ```go install github.com/henokv/azure-env```  
+For now please use ```go install github.com/henokv/azure-env```  
 Later I will also add binaries in releases.
 
 ## Usage
