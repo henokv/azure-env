@@ -1,0 +1,10 @@
+tasks:
+  - init: |
+      go install github.com/spf13/cobra-cli@latest
+      go get github.com/spf13/cobra/cobra
+      go build
+    command: |
+      ./azure-env --help
+vscode:
+  extensions:
+    - golang.go
