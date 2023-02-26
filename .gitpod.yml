@@ -8,3 +8,5 @@ tasks:
 vscode:
   extensions:
     - golang.go
+    - com.intellij.plugins.vscodekeymap
+    - uk.co.ben-gibson.remote.repository.mapper
