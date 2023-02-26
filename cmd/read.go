@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/henokv/azure-env/internal"
 	"github.com/spf13/cobra"
-	"log"
 	"strings"
 )
 
@@ -20,7 +19,7 @@ var readCmd = &cobra.Command{
 	Example: fmt.Sprintf(`Get a key vault secret, stored in azure key vault 'knox' with secret name 'gold':
 
         %s read azure://knox.vault.azure.net/gold`, rootCmd.Name()),
-	Run: readCmdFunc,
+	RunE: readCmdFunc,
 }
 
 func readCmdValidator(cmd *cobra.Command, args []string) error {
@@ -34,18 +33,19 @@ func readCmdValidator(cmd *cobra.Command, args []string) error {
 
 //var readRef string
 
-func readCmdFunc(cmd *cobra.Command, args []string) {
+func readCmdFunc(cmd *cobra.Command, args []string) error {
 	ref := args[0]
 	vaultUrl, secretName, err := internal.DecodeRef(ref)
 	if err != nil {
-		log.Fatalf("%s", err)
+		return err
 	}
 	secret, err := internal.GetSecret(vaultUrl, secretName)
 	if err != nil {
-		log.Fatalf("%s", err)
+		return err
 	}
 	//log.Printf("%v", *secret.Value)
 	fmt.Println(*secret.Value)
+	return nil
 }
 
 func init() {
