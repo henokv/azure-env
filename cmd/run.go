@@ -22,7 +22,9 @@ var runCmd = &cobra.Command{
 
         %s run terraform plan`, rootCmd.Name()),
 	//Run: runCmdFunc,
-	RunE: runCmdFunc,
+	RunE:    runCmdFunc,
+	Aliases: []string{"exec"},
+	GroupID: "azure",
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) (error error) {

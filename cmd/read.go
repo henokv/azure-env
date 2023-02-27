@@ -19,7 +19,8 @@ var readCmd = &cobra.Command{
 	Example: fmt.Sprintf(`Get a key vault secret, stored in azure key vault 'knox' with secret name 'gold':
 
         %s read azure://knox.vault.azure.net/gold`, rootCmd.Name()),
-	RunE: readCmdFunc,
+	RunE:    readCmdFunc,
+	GroupID: "azure",
 }
 
 func readCmdValidator(cmd *cobra.Command, args []string) error {
