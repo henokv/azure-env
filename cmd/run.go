@@ -28,6 +28,7 @@ var runCmd = &cobra.Command{
 }
 
 func runCmdFunc(cmd *cobra.Command, args []string) (error error) {
+	internal.SetVerbosity(verbosity)
 	var runner *exec.Cmd
 	if len(args) == 1 {
 		runner = exec.Command(args[0])
@@ -62,4 +63,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	runCmd.Flags().StringVarP(&envFile, "env-file", "f", "", "the path to an env file which needs to be used")
 }

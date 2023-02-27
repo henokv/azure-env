@@ -18,7 +18,14 @@ var rootCmd = &cobra.Command{
 	ValidArgs: []string{"exec"},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	//Run: func(cmd *cobra.Command, args []string) {},
+	//Run: func(cmd *cobra.Command, args []string) {
+	//	//fmt.Printf("%v\n", verbosity)
+	//	//if envFile == "" {
+	//	//	fmt.Printf("nothing\n")
+	//	//} else {
+	//	//	fmt.Printf("line: %s\n", envFile)
+	//	//}
+	//},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -31,6 +38,10 @@ func Execute() {
 	}
 }
 
+var envFile string
+
+var verbosity bool
+
 func init() {
 	azureGroup := cobra.Group{ID: "azure", Title: "Azure Commands"}
 	rootCmd.AddGroup(&azureGroup)
@@ -42,5 +53,6 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().BoolVarP(&verbosity, "verbosity", "v", false, "Should verbosity loggin be enabled")
+	//fmt.Printf("%v\n", *verbosity)
 }

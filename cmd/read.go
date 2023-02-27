@@ -35,6 +35,7 @@ func readCmdValidator(cmd *cobra.Command, args []string) error {
 //var readRef string
 
 func readCmdFunc(cmd *cobra.Command, args []string) error {
+	internal.SetVerbosity(verbosity)
 	ref := args[0]
 	vaultUrl, secretName, err := internal.DecodeRef(ref)
 	if err != nil {
