@@ -12,15 +12,22 @@ import (
 )
 
 type env interface {
-	GetRef() string
+	GetSecretRef() string
 }
 
 type Secret struct {
+	Env      string `json:"env"`
 	EnvRef   string `json:"env_ref"`
 	Key      string `json:"key"`
 	Value    string `json:"value"`
 	ValueRef string `json:"value_ref"`
-	Env      string `json:"env"`
+}
+
+func NewSecret(envRef string) *Secret {
+	secret := Secret{
+		EnvRef: envRef,
+	}
+	return &secret
 }
 
 func GetRef(secret Secret) string {

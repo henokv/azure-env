@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/henokv/azure-env/internal"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"log"
 	"os"
@@ -51,7 +52,17 @@ func runCmdFunc(cmd *cobra.Command, args []string) (error error) {
 	return nil
 }
 
+func initConfig() {
+	if envFile != "" {
+		if err := godotenv.Load(envFile); err != nil {
+			fmt.Println("Can't read env file:", err)
+			os.Exit(1)
+		}
+	}
+}
+
 func init() {
+	cobra.OnInitialize(initConfig)
 	rootCmd.AddCommand(runCmd)
 
 	// Here you will define your flags and configuration settings.
@@ -64,4 +75,5 @@ func init() {
 	// is called directly, e.g.:
 	// runCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	runCmd.Flags().StringVarP(&envFile, "env-file", "f", "", "the path to an env file which needs to be used")
+	//viper.BindPFlag("env-file", rootCmd.Flags().Lookup("env-file"))
 }
