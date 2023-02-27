@@ -1,3 +1,5 @@
+[![goreleaser](https://github.com/henokv/azure-env/actions/workflows/release.yml/badge.svg)](https://github.com/henokv/azure-env/actions/workflows/release.yml)
+
 # azure-env
 
 Azure env is a CLI teal built to help me solve a specific problem.
