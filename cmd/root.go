@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 	Use:       "azure-env",
 	Short:     "A tool to inject azure key vault secrets in env variables",
 	Long:      `A tool to inject azure key vault secrets in env variables`,
-	Version:   "1.0.0",
+	Version:   "0.1.0",
 	ValidArgs: []string{"exec"},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
