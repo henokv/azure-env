@@ -10,12 +10,23 @@ The credentials are, by default, not stored on the file system. Later on support
 and azure app configuration might get added.
 
 ## Installation
+To install download the latest version from the [releases](https://github.com/henokv/azure-env/releases) page or if you have go installed run the command
+```shell
+go install github.com/henokv/azure-env@latest
+```
 
-For now please use ```go install github.com/henokv/azure-env```  
-Later I will also add binaries in releases.
-
-## Usage
-### Linux
+## Usage 
+### Linux config file
+Contents of .env
+```
+AZURE_CLIENT_SECRET=azure://knox.vault.azure.net/secret
+PUBLIC_ENV_VAR=notasecret
+```
+```shell
+# Run the command which will consume the secrets from the env file
+azure-env run -f .env terraform plan
+```
+### Linux env vars
 ```shell
 # Set a secret supported by azure cli & terraform
 export AZURE_CLIENT_SECRET=azure://knox.vault.azure.net/secret
@@ -23,10 +34,11 @@ export AZURE_CLIENT_SECRET=azure://knox.vault.azure.net/secret
 azure-env run terraform plan
 ```
 
-### Windows
+### Windows env vars
 ```shell
 # Set a secret supported by azure cli & terraform
 $Env:AZURE_CLIENT_SECRET=azure://knox.vault.azure.net/secret
 # Run the command which will consume the secret
 azure-env run terraform plan
+```
 ```
