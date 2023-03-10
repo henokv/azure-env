@@ -2,12 +2,11 @@
 
 # azure-env
 
-Azure env is a CLI teal built to help me solve a specific problem.
-Sometimes while testing certain CLI tools (e.g.: terraform import) locally I can't automatically use all credentials in my shell.
+Azure env is a CLI tool built to help solve a specific problem.
+Sometimes while testing certain CLI tools (e.g.: terraform import) locally I can't automatically use all credentials in the shell.
 
-This tool allows me to use env vars and still use azure key vault to store my secrets.
-The credentials are, by default, not stored on the file system. Later on support for locally (temporary) caching
-and azure app configuration might get added.
+This tool allows you to use env vars and still use azure key vault to store the secrets.
+Later on support for azure app configuration might get added.
 
 ## Installation
 To install download the latest version from the [releases](https://github.com/henokv/azure-env/releases) page or if you have go installed run the command
