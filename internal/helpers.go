@@ -5,56 +5,70 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"os"
 	"strings"
 	"sync"
 )
 
-type env interface {
-	GetSecretRef() string
-}
-
+// Secret represents an environment variable that may reference an Azure Key Vault secret
 type Secret struct {
-	Env      string `json:"env"`
-	EnvRef   string `json:"env_ref"`
-	Key      string `json:"key"`
-	Value    string `json:"value"`
-	ValueRef string `json:"value_ref"`
+	Env      string `json:"env"`      // The final rendered environment variable (KEY=value)
+	EnvRef   string `json:"env_ref"`  // The original reference (KEY=azure://vault/secret)
+	Key      string `json:"key"`      // The environment variable name
+	Value    string `json:"value"`    // The resolved secret value
+	ValueRef string `json:"value_ref"` // The Azure reference (azure://vault/secret)
 }
 
+// NewSecret creates a new Secret from an Azure reference
 func NewSecret(envRef string) *Secret {
-	secret := Secret{
+	return &Secret{
 		EnvRef: envRef,
 	}
-	return &secret
 }
 
-func GetRef(secret Secret) string {
-	return secret.ValueRef
+// Config holds the global configuration state for Azure authentication
+type Config struct {
+	credential *azidentity.DefaultAzureCredential
+	mu         *sync.Mutex
+	verbose    bool
 }
 
-func (secret Secret) SetRefs() {
-
+// DefaultConfig is the singleton configuration instance
+var defaultConfig = &Config{
+	mu: &sync.Mutex{},
 }
 
-func GetEnvAsSecret() (secrets []Secret, otherEnv []string, error error) {
-	for _, env := range os.Environ() {
+// GetEnvAsSecret separates environment variables into Azure Key Vault references and regular variables
+func GetEnvAsSecret() ([]Secret, []string, error) {
+	environ := os.Environ()
+	secrets := make([]Secret, 0)
+	otherEnv := make([]string, 0, len(environ))
+
+	for _, env := range environ {
 		parts := strings.SplitN(env, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
 		key := parts[0]
 		valueRef := parts[1]
+
 		if strings.HasPrefix(valueRef, "azure://") {
-			secret, error := GetSecretByRef(valueRef)
-			if error != nil {
-				return secrets, []string{}, error
+			secret, err := GetSecretByRef(valueRef)
+			if err != nil {
+				return nil, nil, err
 			}
-			value := *secret.Value
+			if secret.Value == nil {
+				return nil, nil, fmt.Errorf("empty secret value for %s", valueRef)
+			}
+
 			secrets = append(secrets, Secret{
 				EnvRef:   fmt.Sprintf("%s=%s", key, valueRef),
 				Key:      key,
 				ValueRef: valueRef,
-				Value:    value,
-				Env:      fmt.Sprintf("%s=%s", key, value),
+				Value:    *secret.Value,
+				Env:      fmt.Sprintf("%s=%s", key, *secret.Value),
 			})
 		} else {
 			otherEnv = append(otherEnv, env)
@@ -63,27 +77,37 @@ func GetEnvAsSecret() (secrets []Secret, otherEnv []string, error error) {
 	return secrets, otherEnv, nil
 }
 
-func SetSecretsToEnv(secrets []Secret) {
+// SetSecretsToEnv sets resolved secret values to the environment
+func SetSecretsToEnv(secrets []Secret) error {
 	for _, secret := range secrets {
-		os.Setenv(secret.Key, secret.Value)
+		if err := os.Setenv(secret.Key, secret.Value); err != nil {
+			return fmt.Errorf("failed to set environment variable %s: %w", secret.Key, err)
+		}
 	}
+	return nil
 }
 
-func GetOriginalEnv(secrets []Secret) (env []string) {
-	for _, secret := range secrets {
-		env = append(env, secret.EnvRef)
+// GetOriginalEnv returns the original environment variable references (before resolution)
+func GetOriginalEnv(secrets []Secret) []string {
+	env := make([]string, len(secrets))
+	for i, secret := range secrets {
+		env[i] = secret.EnvRef
 	}
 	return env
 }
 
-func GetRenderedEnv(secrets []Secret) (env []string) {
-	for _, secret := range secrets {
-		env = append(env, secret.Env)
+// GetRenderedEnv returns the resolved environment variables (after secret resolution)
+func GetRenderedEnv(secrets []Secret) []string {
+	env := make([]string, len(secrets))
+	for i, secret := range secrets {
+		env[i] = secret.Env
 	}
 	return env
 }
 
-func GetFullRenderedEnv(secrets []Secret, otherEnv []string) (env []string) {
+// GetFullRenderedEnv returns all environment variables (secrets + non-secrets)
+func GetFullRenderedEnv(secrets []Secret, otherEnv []string) []string {
+	env := make([]string, 0, len(secrets)+len(otherEnv))
 	for _, secret := range secrets {
 		env = append(env, secret.Env)
 	}
@@ -91,75 +115,101 @@ func GetFullRenderedEnv(secrets []Secret, otherEnv []string) (env []string) {
 	return env
 }
 
-func DecodeRef(ref string) (vaultUrl, secretName string, error error) {
-	if !strings.HasPrefix(ref, "azure://") {
-		return vaultUrl, secretName, fmt.Errorf("reference requires prefix azure://, but got '%s'", ref)
+// DecodeRef parses an Azure reference (azure://vaultname/secretname) into vault URL and secret name
+func DecodeRef(ref string) (string, string, error) {
+	const azurePrefix = "azure://"
+	if !strings.HasPrefix(ref, azurePrefix) {
+		return "", "", fmt.Errorf("reference requires prefix %s, but got '%s'", azurePrefix, ref)
 	}
-	ref = strings.TrimPrefix(ref, "azure://")
-	refs := strings.Split(ref, "/")
-	if len(refs) > 2 {
-		return vaultUrl, secretName, fmt.Errorf("reference should contain 2 parts, but got '%s'", ref)
+
+	ref = strings.TrimPrefix(ref, azurePrefix)
+	parts := strings.Split(ref, "/")
+
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("reference should contain 2 parts separated by '/', but got '%s'", ref)
 	}
-	vaultUrl = fmt.Sprintf("https://%s", refs[0])
-	secretName = refs[1]
-	return vaultUrl, secretName, nil
+
+	vaultURL := fmt.Sprintf("https://%s.vault.azure.net", parts[0])
+	secretName := parts[1]
+
+	return vaultURL, secretName, nil
 }
 
+// GetSecretByRef retrieves a secret from Azure Key Vault using a reference string
 func GetSecretByRef(ref string) (azsecrets.GetSecretResponse, error) {
-	vaultName, secretName, err := DecodeRef(ref)
+	vaultURL, secretName, err := DecodeRef(ref)
 	if err != nil {
 		return azsecrets.GetSecretResponse{}, err
 	}
-	return GetSecret(vaultName, secretName)
+	return GetSecret(vaultURL, secretName)
 }
 
-var cred *azidentity.DefaultAzureCredential
-
-var lock = &sync.Mutex{}
-
-var verbose bool
-
-func GetAuth() (err error) {
-	if cred == nil {
-		lock.Lock()
-		defer lock.Unlock()
-		cred, err = azidentity.NewDefaultAzureCredential(nil)
-		if err != nil {
-			var responseError azidentity.AuthenticationFailedError
-			errors.As(err, &responseError)
-			if verbose {
-				return fmt.Errorf("authentication error: ", responseError.RawResponse.Status)
-			}
-			return fmt.Errorf("unable to authenticate, check azure auth docs for authentication options or add verbose flag for more info")
-		}
+// formatError returns a user-friendly error message, with detailed info if verbose mode is enabled
+func (c *Config) formatError(verbose bool, detailedErr error, userMsg string) error {
+	if verbose {
+		return fmt.Errorf("%s: %w", userMsg, detailedErr)
 	}
+	return errors.New(userMsg)
+}
+
+// ensureAuthenticated initializes the Azure credential if not already done
+func (c *Config) ensureAuthenticated() error {
+	if c.credential != nil {
+		return nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Check again after acquiring lock (double-check locking)
+	if c.credential != nil {
+		return nil
+	}
+
+	cred, err := azidentity.NewDefaultAzureCredential(nil)
+	if err != nil {
+		var authErr azidentity.AuthenticationFailedError
+		if errors.As(err, &authErr) {
+			return c.formatError(c.verbose, err, "not authenticated: check Azure authentication (env vars, CLI, or managed identity), or add -v/--verbosity for details")
+		}
+		return c.formatError(c.verbose, err, "authentication failed: check Azure authentication (env vars, CLI, or managed identity)")
+	}
+
+	c.credential = cred
 	return nil
 }
 
-func GetSecret(vaultUrl, secretName string) (azsecrets.GetSecretResponse, error) {
-	response := azsecrets.GetSecretResponse{}
-	err := GetAuth()
-	if err != nil {
-		return response, err
+// GetSecret retrieves a secret from Azure Key Vault
+func GetSecret(vaultURL, secretName string) (azsecrets.GetSecretResponse, error) {
+	if err := defaultConfig.ensureAuthenticated(); err != nil {
+		return azsecrets.GetSecretResponse{}, err
 	}
-	client, err := azsecrets.NewClient(vaultUrl, cred, nil)
+
+	client, err := azsecrets.NewClient(vaultURL, defaultConfig.credential, nil)
 	if err != nil {
-		if verbose {
-			return response, fmt.Errorf("client creation error: %s", err)
-		}
-		return response, fmt.Errorf("unable to get auth client for vault=%s, add verbose flag for more info", vaultUrl)
+		return azsecrets.GetSecretResponse{}, defaultConfig.formatError(
+			defaultConfig.verbose,
+			err,
+			fmt.Sprintf("unable to create client for vault %s: check Azure authentication", vaultURL),
+		)
 	}
+
 	ctx := context.Background()
 	secret, err := client.GetSecret(ctx, secretName, "", nil)
 	if err != nil {
-		if verbose {
-			return response, fmt.Errorf("get secret error: %s", err)
-		}
-		return response, fmt.Errorf("unable to get secret for vault=%s secret=%s, add verbose flag for more info", vaultUrl, secretName)
+		return azsecrets.GetSecretResponse{}, defaultConfig.formatError(
+			defaultConfig.verbose,
+			err,
+			fmt.Sprintf("unable to retrieve secret %s from vault %s: check secret exists and you have access", secretName, vaultURL),
+		)
 	}
+
 	return secret, nil
 }
 
-func SetVerbosity(verboseEnabled bool) {
-	verbose = verboseEnabled
+// SetVerbosity enables or disables verbose logging
+func SetVerbosity(verbose bool) {
+	defaultConfig.mu.Lock()
+	defer defaultConfig.mu.Unlock()
+	defaultConfig.verbose = verbose
 }
