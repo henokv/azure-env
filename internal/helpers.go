@@ -150,7 +150,7 @@ func getAuthenticationError(err error) error {
 	if verbose {
 		return fmt.Errorf("authentication error: %w", err)
 	}
-	return fmt.Errorf("unable to authenticate with Azure. Run `az login` or configure another authentication method. Add --verbosity for more details")
+	return fmt.Errorf("unable to authenticate with Azure. Run `az login` or configure another authentication method. Add -v/--verbosity for more details")
 }
 
 func GetSecret(vaultUrl, secretName string) (azsecrets.GetSecretResponse, error) {
