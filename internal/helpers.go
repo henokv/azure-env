@@ -2,8 +2,9 @@ package internal
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"os"
@@ -125,15 +126,31 @@ func GetAuth() (err error) {
 		defer lock.Unlock()
 		cred, err = azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
-			var responseError azidentity.AuthenticationFailedError
-			errors.As(err, &responseError)
-			if verbose {
-				return fmt.Errorf("authentication error: ", responseError.RawResponse.Status)
-			}
-			return fmt.Errorf("unable to authenticate, check azure auth docs for authentication options or add verbose flag for more info")
+			return getAuthenticationError(err)
 		}
 	}
+	err = ValidateAzureCredential(cred)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func ValidateAzureCredential(credential azcore.TokenCredential) error {
+	_, err := credential.GetToken(context.Background(), policy.TokenRequestOptions{
+		Scopes: []string{"https://vault.azure.net/.default"},
+	})
+	if err != nil {
+		return getAuthenticationError(err)
+	}
+	return nil
+}
+
+func getAuthenticationError(err error) error {
+	if verbose {
+		return fmt.Errorf("authentication error: %w", err)
+	}
+	return fmt.Errorf("unable to authenticate with Azure. Run `az login` or configure another authentication method. Add -v/--verbosity for more details")
 }
 
 func GetSecret(vaultUrl, secretName string) (azsecrets.GetSecretResponse, error) {
