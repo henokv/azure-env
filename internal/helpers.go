@@ -2,7 +2,6 @@ package internal
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -150,10 +149,6 @@ func ValidateAzureCredential(credential azcore.TokenCredential) error {
 func getAuthenticationError(err error) error {
 	if verbose {
 		return fmt.Errorf("authentication error: %w", err)
-	}
-	var responseError *azidentity.AuthenticationFailedError
-	if errors.As(err, &responseError) {
-		return fmt.Errorf("unable to authenticate with Azure. Run `az login` or configure another authentication method. Add --verbosity for more details")
 	}
 	return fmt.Errorf("unable to authenticate with Azure. Run `az login` or configure another authentication method. Add --verbosity for more details")
 }
