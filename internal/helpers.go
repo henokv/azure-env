@@ -97,7 +97,7 @@ func DecodeRef(ref string) (vaultUrl, secretName string, error error) {
 	}
 	ref = strings.TrimPrefix(ref, "azure://")
 	refs := strings.Split(ref, "/")
-	if len(refs) > 2 {
+	if len(refs) != 2 {
 		return vaultUrl, secretName, fmt.Errorf("reference should contain 2 parts, but got '%s'", ref)
 	}
 	vaultUrl = fmt.Sprintf("https://%s", refs[0])
@@ -125,10 +125,9 @@ func GetAuth() (err error) {
 		defer lock.Unlock()
 		cred, err = azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
-			var responseError azidentity.AuthenticationFailedError
-			errors.As(err, &responseError)
-			if verbose {
-				return fmt.Errorf("authentication error: ", responseError.RawResponse.Status)
+			var responseError *azidentity.AuthenticationFailedError
+			if verbose && errors.As(err, &responseError) {
+				return fmt.Errorf("authentication error: %s", responseError.RawResponse.Status)
 			}
 			return fmt.Errorf("unable to authenticate, check azure auth docs for authentication options or add verbose flag for more info")
 		}

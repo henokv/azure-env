@@ -8,7 +8,6 @@ import (
 	"github.com/henokv/azure-env/internal"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"log"
 	"os"
 	"os/exec"
 )
@@ -40,16 +39,13 @@ func runCmdFunc(cmd *cobra.Command, args []string) (error error) {
 	secrets, otherEnv, err := internal.GetEnvAsSecret()
 	if err != nil {
 		return err
-		log.Fatalf("hi")
 	}
 	env := internal.GetFullRenderedEnv(secrets, otherEnv)
 	runner.Env = env
-	//runner.Env = os.Environ()
 	runner.Stdout = os.Stdout
 	runner.Stderr = os.Stderr
 	runner.Stdin = os.Stdin
-	runner.Run()
-	return nil
+	return runner.Run()
 }
 
 func initConfig() {
